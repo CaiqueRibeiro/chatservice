@@ -7,35 +7,35 @@ import (
 )
 
 type ChatConfig struct {
-	Model *Model
-	Temperature 			float32 // 0.0 to 1.0
-	TopP							float32	// 0.0 to 1.0
-	N									int // number of messages to generate
-	Stop							[]string // list of tokens to stop on
-	MaxTokens					int // number of tokens to generate
-	PresencePenalty		float32 // -2.0 to 2.0
+	Model            *Model
+	Temperature      float32  // 0.0 to 1.0
+	TopP             float32  // 0.0 to 1.0
+	N                int      // number of messages to generate
+	Stop             []string // list of tokens to stop on
+	MaxTokens        int      // number of tokens to generate
+	PresencePenalty  float32  // -2.0 to 2.0
 	FrequencyPenalty float32
 }
 
 type Chat struct {
-	ID 										string
-	UserID 								string
-	InitialSystemMessage 	*Message
-	Messages							[]*Message
-	ErasedMessages				[]*Message
-	Status 								string
-	TokenUsage 						int
-	Config 								*ChatConfig
+	ID                   string
+	UserID               string
+	InitialSystemMessage *Message
+	Messages             []*Message
+	ErasedMessages       []*Message
+	Status               string
+	TokenUsage           int
+	Config               *ChatConfig
 }
 
 func NewChat(userID string, initialSystemMessage *Message, chatConfig *ChatConfig) (*Chat, error) {
-	chat := &Chat {
-		ID: 									uuid.New().String(),
-		UserID: 							userID,
+	chat := &Chat{
+		ID:                   uuid.New().String(),
+		UserID:               userID,
 		InitialSystemMessage: initialSystemMessage,
-		Status: 							"active",
-		Config: 							chatConfig,
-		TokenUsage: 					0,
+		Status:               "active",
+		Config:               chatConfig,
+		TokenUsage:           0,
 	}
 	chat.AddMessage(initialSystemMessage)
 	if err := chat.Validate(); err != nil {
@@ -62,7 +62,7 @@ func (c *Chat) AddMessage(m *Message) error {
 		return errors.New("chat is ended. No more messages allowed")
 	}
 	for {
-		if c.Config.Model.GetMaxTokens() >= m.GetQtdTokens() + c.TokenUsage {
+		if c.Config.Model.GetMaxTokens() >= m.GetQtdTokens()+c.TokenUsage {
 			c.Messages = append(c.Messages, m)
 			c.RefreshTokenUsage()
 			break
@@ -90,5 +90,5 @@ func (c *Chat) CountMessages() int {
 }
 
 func (c *Chat) End() {
-	c.status = "ended"
+	c.Status = "ended"
 }

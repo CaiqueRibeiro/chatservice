@@ -1,22 +1,27 @@
 package chatcompletionstream
 
 import (
-	openai "github.com/sashabaranov/go-openai"
-	"github.com/CaiqueRibeiro/chatservice/internal/domain/gateway"
+	"context"
+	"errors"
+	"io"
+	"strings"
 
+	"github.com/CaiqueRibeiro/chatservice/internal/domain/entity"
+	"github.com/CaiqueRibeiro/chatservice/internal/domain/gateway"
+	openai "github.com/sashabaranov/go-openai"
 )
 
 type ChatCompletionConfigInputDTO struct {
-	Model string
-	ModelMaxTokens 				int
-	Temperature 					float32
-	TopP									float32
-	N											int
-	Stop									[]string
-	MaxTokens 						int
-	PresencePenalty 			float32
-	FrequencyPenalty			float32
-	InitialSystemMessage	string
+	Model                string
+	ModelMaxTokens       int
+	Temperature          float32
+	TopP                 float32
+	N                    int
+	Stop                 []string
+	MaxTokens            int
+	PresencePenalty      float32
+	FrequencyPenalty     float32
+	InitialSystemMessage string
 }
 
 type ChatCompletionInputDTO struct {
@@ -33,14 +38,15 @@ type ChatCompletionOutputDTO struct {
 }
 
 type ChatCompletionUseCase struct {
-	ChatGateway 	gateway.ChatGateway
+	ChatGateway  gateway.ChatGateway
 	OpenAiClient *openai.Client
+	Stream       chan ChatCompletionOutputDTO
 }
 
 func NewChatCompletionUseCase(chatGateway gateway.ChatGateway, openAiClient *openai.Client) *ChatCompletionUseCase {
 	return &ChatCompletionUseCase{
-		ChatGateway: chatGateway,
-		OpenAiClient: openAiClient
+		ChatGateway:  chatGateway,
+		OpenAiClient: openAiClient,
 	}
 }
 
@@ -75,7 +81,7 @@ func (uc *ChatCompletionUseCase) Execute(ctx context.Context, input ChatCompleti
 			Content: msg.Content,
 		})
 	}
-	resp, err := uc.OpenAIClient.CreateChatCompletionStream(
+	resp, err := uc.OpenAiClient.CreateChatCompletionStream(
 		context.Background(),
 		openai.ChatCompletionRequest{
 			Model:            chat.Config.Model.Name,
