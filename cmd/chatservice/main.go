@@ -5,10 +5,12 @@ import (
 	"fmt"
 
 	"github.com/CaiqueRibeiro/chatservice/configs"
+	"github.com/CaiqueRibeiro/chatservice/internal/infra/grpc/server"
 	"github.com/CaiqueRibeiro/chatservice/internal/infra/repository"
 	"github.com/CaiqueRibeiro/chatservice/internal/infra/web"
 	"github.com/CaiqueRibeiro/chatservice/internal/infra/web/webserver"
 	"github.com/CaiqueRibeiro/chatservice/internal/usecase/chatcompletion"
+	"github.com/CaiqueRibeiro/chatservice/internal/usecase/chatcompletionstream"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/sashabaranov/go-openai"
 )
@@ -40,25 +42,29 @@ func main() {
 		InitialSystemMessage: configs.InitialChatMessage,
 	}
 
-	// chatConfigStream := chatcompletionstream.ChatCompletionConfigInputDTO{
-	// 	Model:                configs.Model,
-	// 	ModelMaxTokens:       configs.ModelMaxTokens,
-	// 	Temperature:          float32(configs.Temperature),
-	// 	TopP:                 float32(configs.TopP),
-	// 	N:                    configs.N,
-	// 	Stop:                 configs.Stop,
-	// 	MaxTokens:            configs.MaxTokens,
-	// 	InitialSystemMessage: configs.InitialChatMessage,
-	// }
+	chatConfigStream := chatcompletionstream.ChatCompletionConfigInputDTO{
+		Model:                configs.Model,
+		ModelMaxTokens:       configs.ModelMaxTokens,
+		Temperature:          float32(configs.Temperature),
+		TopP:                 float32(configs.TopP),
+		N:                    configs.N,
+		Stop:                 configs.Stop,
+		MaxTokens:            configs.MaxTokens,
+		InitialSystemMessage: configs.InitialChatMessage,
+	}
 
 	usecase := chatcompletion.NewChatCompletionUseCase(repo, client)
 
-	// streamChannel := make(chan chatcompletionstream.ChatCompletionOutputDTO)
-	// usecaseStream := chatcompletionstream.NewChatCompletionUseCase(repo, client, streamChannel)
+	streamChannel := make(chan chatcompletionstream.ChatCompletionOutputDTO)
+	usecaseStream := chatcompletionstream.NewChatCompletionUseCase(repo, client, streamChannel)
 
-	webserver := webserver.NewServer(":" + configs.WebServerPort)
+	webserver := webserver.NewWebServer(":" + configs.WebServerPort)
 	webserverChatHandler := web.NewWebChatGTPHandler(*usecase, chatConfig, configs.AuthToken)
 	webserver.AddHandler("/chat", webserverChatHandler.Handle)
+
+	fmt.Println("gRPC server running on port " + configs.GRPCServerPort)
+	grpcServer := server.NewGRPCServer(*usecaseStream, chatConfigStream, configs.GRPCServerPort, configs.AuthToken, streamChannel)
+	go grpcServer.Start()
 
 	fmt.Println("HTTP server running on port " + configs.WebServerPort)
 	webserver.Start()
